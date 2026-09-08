@@ -60,3 +60,5 @@ Stack trace:
 [17-Aug-2026 00:00:49 Europe/Moscow] Database connection error: SQLSTATE[08004] [1040] Too many connections
 [17-Aug-2026 00:00:49 Europe/Moscow] Database connection error: SQLSTATE[HY000] [1040] Too many connections
 [20-Aug-2026 11:03:00 Europe/Samara] Create mission error: Робот уже занят другим заказом.
+[08-Sep-2026 00:05:01 Europe/Samara] Database connection error: SQLSTATE[HY000] [2002] No such file or directory
+[08-Sep-2026 00:06:44 Europe/Samara] Database connection error: SQLSTATE[HY000] [2002] No such file or directory

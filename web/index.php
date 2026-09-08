@@ -246,6 +246,9 @@ if ($path === '/login' && $method === 'GET') {
 if ($path === '/login' && $method === 'POST') {
     verify_csrf();
     $email = normalize_email((string)($_POST['email'] ?? ''));
+
+    check_rate_limit($pdo, 'login:' . client_ip_hash() . ':' . $email);
+
     $password = (string)($_POST['password'] ?? '');
     if (strlen($email) > 190 || strlen($password) > 128 || str_contains($password, "\0")) {
         usleep(random_int(100000, 300000));
@@ -327,8 +330,11 @@ if ($path === '/request-access' && $method === 'GET') {
 
 if ($path === '/request-access' && $method === 'POST') {
     verify_csrf();
-    $fullName = trim((string)($_POST['full_name'] ?? ''));
     $email = normalize_email((string)($_POST['email'] ?? ''));
+
+    check_rate_limit($pdo, 'request:' . client_ip_hash());
+
+    $fullName = trim((string)($_POST['full_name'] ?? ''));
     $organization = trim((string)($_POST['organization'] ?? ''));
     $reason = trim((string)($_POST['reason'] ?? ''));
     $password = (string)($_POST['password'] ?? '');

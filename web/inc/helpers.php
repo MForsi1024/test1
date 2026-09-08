@@ -45,6 +45,50 @@ function csrf_token(): string
     return (string)$_SESSION['csrf'];
 }
 
+function check_rate_limit(PDO $pdo, string $key, int $maxAttempts = 5, int $windowMinutes = 15): void
+{
+    $keyHash = hash('sha256', $key);
+    // Cleanup old records occasionally (1% chance) to avoid locking on every request
+    if (random_int(1, 100) === 1) {
+        $pdo->prepare('DELETE FROM rate_limits WHERE window_started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)')->execute([$windowMinutes]);
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare('SELECT attempts, blocked_until FROM rate_limits WHERE bucket_key = ? FOR UPDATE');
+        $stmt->execute([$keyHash]);
+        $row = $stmt->fetch();
+
+        if ($row) {
+            if ($row['blocked_until'] !== null && strtotime($row['blocked_until']) > time()) {
+                $pdo->rollBack();
+                http_response_code(429);
+                header('Retry-After: ' . (strtotime($row['blocked_until']) - time()));
+                exit('Слишком много попыток. Пожалуйста, подождите.');
+            }
+
+            if ((int)$row['attempts'] >= $maxAttempts) {
+                $pdo->prepare('UPDATE rate_limits SET blocked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE bucket_key = ?')->execute([$windowMinutes, $keyHash]);
+                $pdo->commit();
+                http_response_code(429);
+                header('Retry-After: ' . ($windowMinutes * 60));
+                exit('Слишком много попыток. Пожалуйста, подождите.');
+            }
+
+            $pdo->prepare('UPDATE rate_limits SET attempts = attempts + 1 WHERE bucket_key = ?')->execute([$keyHash]);
+        } else {
+            $pdo->prepare('INSERT INTO rate_limits (bucket_key, attempts, window_started_at) VALUES (?, 1, NOW())')->execute([$keyHash]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Rate limit error: ' . $e->getMessage());
+        // Fail open if table doesn't exist
+    }
+}
+
 function verify_csrf(): void
 {
     $token = (string)($_POST['csrf'] ?? '');
