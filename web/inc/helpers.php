@@ -289,17 +289,6 @@ function random_secret_b64(int $bytes = 32): string
     return rtrim(strtr(base64_encode(random_bytes($bytes)), '+/', '-_'), '=');
 }
 
-function decode_secret_b64(string $value, int $expectedBytes = 32): string
-{
-    $normalized = strtr(trim($value), '-_', '+/');
-    $normalized .= str_repeat('=', (4 - strlen($normalized) % 4) % 4);
-    $raw = base64_decode($normalized, true);
-    if ($raw === false || strlen($raw) !== $expectedBytes) {
-        throw new InvalidArgumentException('Некорректный секретный ключ.');
-    }
-    return $raw;
-}
-
 function high_entropy_token_hash(string $context, string $token): string
 {
     return 'hmac$' . app_hmac($context, $token);
